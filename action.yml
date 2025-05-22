@@ -1,0 +1,62 @@
+name: Create S3 tfstate backend
+
+inputs:
+  first_run:
+    description: >
+      If true, terraform will first be run with a local backend, and then subsequently run again to migrate the state
+      to the backend specified in the tfbackend_content input.
+    default: 'false'
+    required: false
+  plan_only:
+    description: >
+      If true, will only run a terraform plan. If the first_run input is true, then only the local terraform step will
+      be performed as a plan.
+    default: 'false'
+    required: false
+  additional_tfbackend_content:
+    description: Additional content for the s3 backend configuration beyond the bare minimums.
+    required: false
+    default: ''
+  workspace:
+    description: A unique per account name which will be used to determine the path for this terraform's state file.
+    required: true
+  s3_bucket_name:
+    description: The name of the S3 bucket used for Terraform state files. Must be globally unique.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: hashicorp/setup-terraform@v3
+
+    - name: First Time Terraform
+      if: inputs.first_run == 'true'
+      uses: 7Factor/action-terraform@v2
+      env:
+        TF_VAR_s3_bucket_name: ${{ inputs.s3_bucket_name }}
+      with:
+        directory: ${{ github.action_path }}/terraform
+        workspace: ${{ inputs.workspace }}
+        action: ${{ inputs.plan_only == 'true' && 'plan' || 'apply' }}
+        fmt: false
+        validate: false
+
+    - name: Copy base s3 backend config
+      shell: bash
+      run: cp ${{ github.action_path }}/terraform/backend/s3_backend.tf ${{ github.action_path }}/terraform/backend.tf
+
+    - name: Terraform
+      uses: 7Factor/action-terraform@v2
+      env:
+        TF_VAR_s3_bucket_name: ${{ inputs.s3_bucket_name }}
+      with:
+        directory: ${{ github.action_path }}/terraform
+        workspace: ${{ inputs.workspace }}
+        action: ${{ inputs.first_run != 'true' && (inputs.plan_only == 'true' && 'plan' || 'apply') || '' }}
+        fmt: false
+        validate: false
+        init-args: ${{ inputs.first_run == 'true' && '-force-copy' || '' }}
+        tfbackend-content: |
+          bucket = "${{ inputs.s3_bucket_name }}"
+          key    = "${{ AWS_REGION }}/terraform.tfstate"
+          ${{ inputs.additional_tfbackend_content }}
