@@ -58,5 +58,5 @@ runs:
         init-args: ${{ inputs.first_run == 'true' && '-force-copy' || '' }}
         tfbackend-content: |
           bucket = "${{ inputs.s3_bucket_name }}"
-          key    = "${{ AWS_REGION }}/terraform.tfstate"
+          key    = "${{ env.AWS_REGION }}/terraform.tfstate"
           ${{ inputs.additional_tfbackend_content }}
