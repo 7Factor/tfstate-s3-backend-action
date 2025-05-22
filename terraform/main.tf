@@ -124,14 +124,6 @@ resource "aws_s3_bucket_ownership_controls" "terraform_state" {
   depends_on = [time_sleep.wait_for_aws_s3_settings_eventual_consistency]
 }
 
-resource "aws_s3_bucket_acl" "terraform_state" {
-  bucket = aws_s3_bucket.terraform_state.id
-
-  acl = "private"
-
-  depends_on = [aws_s3_bucket_ownership_controls.terraform_state]
-}
-
 resource "aws_s3_bucket_versioning" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 
